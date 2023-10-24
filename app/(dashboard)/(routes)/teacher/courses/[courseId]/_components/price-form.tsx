@@ -1,10 +1,14 @@
 "use client";
 
-import React, { useState } from "react";
 import * as z from "zod";
-
-import { zodResolver } from "@hookform/resolvers/zod";
 import axios from "axios";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { Pencil } from "lucide-react";
+import { useState } from "react";
+import toast from "react-hot-toast";
+import { useRouter } from "next/navigation";
+import { Course } from "@prisma/client";
 
 import {
   Form,
@@ -13,59 +17,58 @@ import {
   FormItem,
   FormMessage,
 } from "@/components/ui/form";
-import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
-import { Pencil } from "lucide-react";
-import toast from "react-hot-toast";
-import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { Course } from "@prisma/client";
+import { Input } from "@/components/ui/input";
+import { formatPrice } from "@/lib/format";
 
-const formSchema = z.object({
-  description: z.string().min(1, {
-    message: "Description is required",
-  }),
-});
-interface DescriptionFormProps {
+interface PriceFormProps {
   initialData: Course;
   courseId: string;
 }
 
-const DescriptionForm = ({ initialData, courseId }: DescriptionFormProps) => {
-  const router = useRouter();
+const formSchema = z.object({
+  price: z.coerce.number(),
+});
+
+export const PriceForm = ({ initialData, courseId }: PriceFormProps) => {
   const [isEditing, setIsEditing] = useState(false);
 
   const toggleEdit = () => setIsEditing((current) => !current);
+
+  const router = useRouter();
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      description: initialData?.description || "",
+      price: initialData?.price || undefined,
     },
   });
 
   const { isSubmitting, isValid } = form.formState;
+
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
       await axios.patch(`/api/courses/${courseId}`, values);
       toast.success("Course updated");
       toggleEdit();
       router.refresh();
-    } catch (error) {
+    } catch {
       toast.error("Something went wrong");
     }
   };
+
   return (
     <div className="mt-6 border bg-slate-100 rounded-md p-4">
       <div className="font-medium flex items-center justify-between">
-        Course Description
+        Course price
         <Button onClick={toggleEdit} variant="ghost">
           {isEditing ? (
             <>Cancel</>
           ) : (
             <>
               <Pencil className="h-4 w-4 mr-2" />
-              Edit description
+              Edit price
             </>
           )}
         </Button>
@@ -74,13 +77,12 @@ const DescriptionForm = ({ initialData, courseId }: DescriptionFormProps) => {
         <p
           className={cn(
             "text-sm mt-2",
-            !initialData.description || "text-slatte-500 italic"
+            !initialData.price && "text-slate-500 italic"
           )}
         >
-          {initialData.description || "No description"}
+          {initialData.price ? formatPrice(initialData.price) : "No price"}
         </p>
       )}
-
       {isEditing && (
         <Form {...form}>
           <form
@@ -89,13 +91,15 @@ const DescriptionForm = ({ initialData, courseId }: DescriptionFormProps) => {
           >
             <FormField
               control={form.control}
-              name="description"
+              name="price"
               render={({ field }) => (
                 <FormItem>
                   <FormControl>
-                    <Textarea
+                    <Input
+                      type="number"
+                      step="0.01"
                       disabled={isSubmitting}
-                      placeholder="e.g. 'This course is about...'"
+                      placeholder="Set a price for your course"
                       {...field}
                     />
                   </FormControl>
@@ -114,5 +118,3 @@ const DescriptionForm = ({ initialData, courseId }: DescriptionFormProps) => {
     </div>
   );
 };
-
-export default DescriptionForm;
